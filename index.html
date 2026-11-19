@@ -7,352 +7,138 @@
 <title>Critter Survivor</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='18' r='11' fill='%23ff7a3d'/%3E%3Cpath d='M7 12l3-9 6 7zM25 12l-3-9-6 7z' fill='%23ff7a3d'/%3E%3Ccircle cx='12' cy='17' r='2' fill='%23101428'/%3E%3Ccircle cx='20' cy='17' r='2' fill='%23101428'/%3E%3C/svg%3E">
 <style>
-  :root { --bg:#0a1430; --fg:#f3f6ff; --accent:#ffd84a; --muted:#8fa2d0; }
+  :root { --bg:#0a1430; --panel:#121d44; --panel2:#16224a; --line:#2c3d78; --fg:#f3f6ff; --accent:#ffd84a; --muted:#8fa2d0; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font-family:system-ui,sans-serif; overflow:hidden; touch-action:none; user-select:none; }
-  canvas { display:block; width:100vw; height:100vh; image-rendering:pixelated; }
-  .overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(5,10,28,.82); }
+  canvas#c { display:block; width:100vw; height:100vh; image-rendering:pixelated; }
+  .screen { position:fixed; inset:0; display:flex; align-items:flex-start; justify-content:center; padding:16px; background:rgba(5,10,28,.9); overflow-y:auto; touch-action:pan-y; }
   .hidden { display:none !important; }
-  .card { max-width:520px; width:100%; text-align:center; }
-  h1 { margin:0 0 6px; font-size:34px; color:var(--accent); letter-spacing:1px; }
+  .card { max-width:640px; width:100%; margin:auto; text-align:center; }
+  h1 { margin:0 0 6px; font-size:32px; color:var(--accent); letter-spacing:1px; }
+  h2 { margin:0 0 8px; font-size:22px; color:var(--accent); }
   p { margin:6px 0; color:var(--muted); line-height:1.4; }
-  button { font:inherit; font-weight:700; cursor:pointer; border:0; border-radius:12px; padding:12px 22px; background:var(--accent); color:#0a1430; margin:6px; }
+  button { font:inherit; font-weight:700; cursor:pointer; border:0; border-radius:12px; padding:12px 20px; background:var(--accent); color:#0a1430; margin:5px; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
   button.ghost { background:#1c2a55; color:var(--fg); }
-  .picks { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
-  .pick { text-align:left; background:#16224a; color:var(--fg); border:2px solid #2c3d78; padding:12px 14px; margin:0; }
+  button.gold { background:linear-gradient(180deg,#ffe27a,#ffb200); }
+  .row { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; }
+  .pick { display:block; width:100%; text-align:left; background:var(--panel2); color:var(--fg); border:2px solid var(--line); padding:12px 14px; margin:8px 0; }
   .pick:hover,.pick:focus { border-color:var(--accent); outline:0; }
   .pick b { color:var(--accent); display:block; }
   .pick small { color:var(--muted); font-weight:400; }
   #stat { position:fixed; top:8px; left:8px; right:8px; pointer-events:none; font-weight:700; text-shadow:0 1px 2px #000; display:flex; justify-content:space-between; gap:8px; font-size:14px; }
+  #slots { position:fixed; top:30px; left:8px; pointer-events:none; font-size:12px; text-shadow:0 1px 2px #000; line-height:1.5; }
+  #slots span { display:block; color:#cfe0ff; }
+  .chips { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:8px 0; }
+  .chip { background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-weight:700; font-size:14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:8px; margin:10px 0; }
+  .cell { background:var(--panel); border:2px solid var(--line); border-radius:12px; padding:6px 4px; text-align:center; font-size:12px; cursor:pointer; position:relative; }
+  .cell img { width:56px; height:56px; object-fit:contain; image-rendering:pixelated; display:block; margin:0 auto 2px; }
+  .cell.locked img { filter:brightness(0) opacity(.55); }
+  .cell.sel { box-shadow:0 0 0 3px var(--accent); }
+  .cell small { display:block; color:var(--muted); font-size:10px; }
+  .detail { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; text-align:left; margin-top:10px; }
+  .detail img { width:84px; height:84px; object-fit:contain; image-rendering:pixelated; float:left; margin-right:10px; }
+  .moves { margin:8px 0 0; padding:0; list-style:none; clear:both; font-size:13px; }
+  .moves li { padding:4px 0; border-top:1px solid #22305f; color:#cfe0ff; }
+  .moves li small { color:var(--muted); display:block; }
+  .tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:999px; background:#0a1430; margin-left:6px; }
+  #wheelwrap { position:relative; width:min(340px,86vw); margin:8px auto; }
+  #wheel { width:100%; height:auto; display:block; }
+  #pointer { position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:12px solid transparent; border-right:12px solid transparent; border-top:24px solid var(--accent); filter:drop-shadow(0 2px 2px #000); }
+  .rates { font-size:12px; color:var(--muted); }
+  .modal { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(3,6,18,.85); }
+  .mcard { background:var(--panel); border:2px solid var(--line); border-radius:16px; padding:16px; max-width:520px; width:100%; max-height:90vh; overflow-y:auto; text-align:center; }
+  .res { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:10px 0; }
+  .res .cell { width:92px; cursor:default; }
+  .big { width:130px; height:130px; object-fit:contain; image-rendering:pixelated; }
+  @media (max-width:420px){ h1{font-size:26px} }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="stat" class="hidden"><span id="sLv"></span><span id="sTime"></span><span id="sKills"></span></div>
+<div id="slots" class="hidden"></div>
 
-<div id="menu" class="overlay">
+<!-- MENU -->
+<div id="menu" class="screen hidden">
   <div class="card">
     <h1>Critter Survivor</h1>
-    <p>Sobreviva às hordas por 10 minutos. Seu critter ataca sozinho: você só se move.</p>
-    <p><b>PC:</b> WASD / setas &nbsp; <b>Celular:</b> arraste na tela</p>
-    <p id="best"></p>
-    <div id="chars"></div>
+    <p>Sobreviva 10 minutos. Seu animal ataca sozinho: você só se move.</p>
+    <div class="chips"><span class="chip" id="chipFree"></span><span class="chip" id="chipGold"></span><span class="chip" id="chipBest"></span></div>
+    <div id="menuSel" style="margin:6px 0"></div>
+    <div class="row">
+      <button id="bPlay">Jogar</button>
+      <button id="bColl" class="ghost">Coleção</button>
+      <button id="bRoul" class="gold">Roleta</button>
+      <button id="bQuiz" class="ghost">Refazer quiz</button>
+    </div>
+    <p style="font-size:12px"><b>PC:</b> WASD / setas &nbsp; <b>Celular:</b> arraste na tela</p>
   </div>
 </div>
 
-<div id="levelup" class="overlay hidden">
-  <div class="card"><h1>Nível!</h1><p>Escolha um upgrade</p><div id="picks" class="picks"></div></div>
+<!-- QUIZ -->
+<div id="quiz" class="screen hidden">
+  <div class="card">
+    <h2 id="qProg"></h2>
+    <p id="qText" style="color:var(--fg);font-size:18px"></p>
+    <div id="qOpts"></div>
+  </div>
 </div>
 
-<div id="end" class="overlay hidden">
-  <div class="card"><h1 id="endTitle"></h1><p id="endInfo"></p><button id="again">Jogar de novo</button><button id="toMenu" class="ghost">Menu</button></div>
+<!-- RESULTADO DO QUIZ / REVELAÇÃO -->
+<div id="reveal" class="screen hidden">
+  <div class="card">
+    <h2 id="rvTitle"></h2>
+    <img id="rvImg" class="big" alt="Animal sorteado" src="assets/animals/a24.png">
+    <h1 id="rvName" style="font-size:28px"></h1>
+    <p id="rvWhy"></p>
+    <div id="rvMoves" class="detail" style="text-align:left"></div>
+    <button id="rvOk">Continuar</button>
+  </div>
 </div>
 
-<script>
-"use strict";
-// ---------- util ----------
-const $ = (id) => document.getElementById(id);
-const cv = $("c"), ctx = cv.getContext("2d");
-let W = 0, H = 0, DPR = 1;
-function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
-addEventListener("resize", resize); resize();
-const rnd = (a, b) => a + Math.random() * (b - a);
-const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
-const dist2 = (a, b) => (a.x-b.x)**2 + (a.y-b.y)**2;
-let store = {};
-try { store = JSON.parse(localStorage.getItem("critter.save") || "{}"); } catch (e) {}
-const save = () => { try { localStorage.setItem("critter.save", JSON.stringify(store)); } catch (e) {} };
+<!-- COLEÇÃO -->
+<div id="coll" class="screen hidden">
+  <div class="card">
+    <h2>Coleção <span id="collCount" class="tag"></span></h2>
+    <div id="collGrid" class="grid"></div>
+    <div id="collDetail" class="detail hidden"></div>
+    <button id="collBack" class="ghost">Voltar</button>
+  </div>
+</div>
 
-// ---------- audio (WebAudio, procedural) ----------
-let actx = null;
-function beep(freq, dur = 0.06, type = "square", vol = 0.04) {
-  try {
-    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = type; o.frequency.value = freq; g.gain.value = vol;
-    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
-    o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
-  } catch (e) {}
-}
+<!-- ROLETA -->
+<div id="roul" class="screen hidden">
+  <div class="card">
+    <h2>Roleta de Animais</h2>
+    <div class="chips"><span class="chip" id="rFree"></span><span class="chip" id="rGold"></span></div>
+    <div id="wheelwrap"><div id="pointer"></div><canvas id="wheel" width="340" height="340"></canvas></div>
+    <div class="row">
+      <button id="spin1">Girar (1 ticket)</button>
+      <button id="spin10">Girar ×10</button>
+      <button id="gspin1" class="gold">Dourado ×1</button>
+      <button id="gspin10" class="gold">Dourado ×10</button>
+    </div>
+    <div class="row"><button id="bBuy" class="gold">Comprar tickets dourados</button><button id="rBack" class="ghost">Voltar</button></div>
+    <p class="rates" id="rRates"></p>
+  </div>
+</div>
 
-// ---------- data ----------
-const CHARS = [
-  { id: "ember", name: "Brasinha", color: "#ff7a3d", hp: 100, spd: 150, weapon: "bolt", desc: "Equilibrado. Dispara faíscas no inimigo mais próximo." },
-  { id: "leafy", name: "Folhito", color: "#5fe08a", hp: 130, spd: 135, weapon: "orbit", desc: "Resistente. Folhas giram ao seu redor." },
-  { id: "zap", name: "Zapinho", color: "#ffe14a", hp: 80, spd: 175, weapon: "nova", desc: "Veloz e frágil. Pulsos elétricos em área." },
-];
-const ENEMIES = {
-  grub:  { r: 9,  hp: 10, spd: 55,  dmg: 6,  xp: 1, color: "#b06cff" },
-  bat:   { r: 8,  hp: 7,  spd: 95,  dmg: 5,  xp: 1, color: "#6cc4ff" },
-  brute: { r: 15, hp: 60, spd: 42,  dmg: 14, xp: 5, color: "#ff5470" },
-  boss:  { r: 40, hp: 2600, spd: 52, dmg: 30, xp: 80, color: "#ff2d6f" },
-};
-const WEAPONS = {
-  bolt:  { name: "Faísca",  desc: (l) => `Dispara ${1 + Math.floor(l/2)+ (l>0?0:0)} projétil(is) no alvo mais próximo.` },
-  orbit: { name: "Folhas",  desc: (l) => `${2 + l} folhas giram ao seu redor.` },
-  nova:  { name: "Pulso",   desc: (l) => `Pulso em área de ${70 + l*14}px a cada ${(1.6 - l*0.12).toFixed(2)}s.` },
-};
-const UPGRADES = [
-  { id: "dmg",  name: "Garras Afiadas", desc: "+20% de dano", apply: (p) => p.dmgMul *= 1.2 },
-  { id: "spd",  name: "Patas Ligeiras", desc: "+10% de velocidade", apply: (p) => p.spd *= 1.1 },
-  { id: "hp",   name: "Pelagem Grossa", desc: "+25 de vida máx. e cura 25", apply: (p) => { p.maxHp += 25; p.hp = Math.min(p.maxHp, p.hp + 25); } },
-  { id: "rate", name: "Reflexos", desc: "-12% de recarga", apply: (p) => p.cdMul *= 0.88 },
-  { id: "mag",  name: "Ímã", desc: "+40% de alcance de coleta", apply: (p) => p.magnet *= 1.4 },
-  { id: "regen",name: "Regeneração", desc: "+0,6 de vida por segundo", apply: (p) => p.regen += 0.6 },
-  { id: "w",    name: "Evoluir Ataque", desc: "", apply: (p) => p.wl++ , weapon: true },
-];
+<!-- LEVEL UP -->
+<div id="levelup" class="screen hidden" style="background:rgba(5,10,28,.82)">
+  <div class="card"><h1>Nível!</h1><p>Escolha um upgrade</p><div id="picks"></div></div>
+</div>
 
-// ---------- state ----------
-let S = null; // game state
-const keys = {};
-const joy = { on: false, id: -1, ox: 0, oy: 0, dx: 0, dy: 0 };
-let chosen = CHARS[0];
+<!-- FIM -->
+<div id="end" class="screen hidden" style="background:rgba(5,10,28,.88)">
+  <div class="card"><h1 id="endTitle"></h1><p id="endInfo"></p><div class="row"><button id="again">Jogar de novo</button><button id="toMenu" class="ghost">Menu</button></div></div>
+</div>
 
-function newGame(ch) {
-  chosen = ch;
-  S = {
-    t: 0, kills: 0, over: false, paused: false, cam: { x: 0, y: 0 }, spawnAcc: 0, bossSpawned: false,
-    p: { x: 0, y: 0, r: 11, hp: ch.hp, maxHp: ch.hp, spd: ch.spd, dmgMul: 1, cdMul: 1, magnet: 60, regen: 0,
-         lv: 1, xp: 0, need: 5, wl: 0, weapon: ch.weapon, cd: 0, color: ch.color, face: 1, iframes: 0, ang: 0 },
-    en: [], pr: [], gem: [], fx: [], fl: [],
-  };
-  $("menu").classList.add("hidden"); $("end").classList.add("hidden"); $("levelup").classList.add("hidden");
-  $("stat").classList.remove("hidden");
-}
+<!-- MODAL -->
+<div id="modal" class="modal hidden"><div class="mcard" id="mcard"></div></div>
 
-// ---------- spawning ----------
-function spawn(type) {
-  const d = ENEMIES[type], a = rnd(0, Math.PI * 2), R = Math.hypot(W, H) / 2 + 40;
-  const scale = 1 + S.t / 240;
-  S.en.push({ type, x: S.p.x + Math.cos(a) * R, y: S.p.y + Math.sin(a) * R, r: d.r, hp: d.hp * scale, maxHp: d.hp * scale, spd: d.spd * (1 + S.t / 900), dmg: d.dmg, xp: d.xp, color: d.color, hit: 0 });
-}
-function spawnTick(dt) {
-  const t = S.t;
-  const rate = 0.9 + t / 28; // enemies/s
-  S.spawnAcc += rate * dt;
-  while (S.spawnAcc >= 1) {
-    S.spawnAcc -= 1;
-    if (S.en.length > 260) continue;
-    const r = Math.random();
-    spawn(t > 90 && r < 0.12 ? "brute" : t > 30 && r < 0.45 ? "bat" : "grub");
-  }
-  if (!S.bossSpawned && t >= 300) { S.bossSpawned = true; spawn("boss"); flash("O Colosso despertou!"); }
-}
-function flash(text) { S.fl.push({ text, t: 2.2 }); }
-
-// ---------- combat ----------
-function dmgEnemy(e, amt, kx, ky) {
-  e.hp -= amt; e.hit = 0.08;
-  S.fx.push({ x: e.x, y: e.y - e.r, text: Math.round(amt), t: 0.5 });
-  if (kx !== undefined && e.type !== "boss") { e.x += kx * 4; e.y += ky * 4; }
-  if (e.hp <= 0 && !e.dead) {
-    e.dead = true; S.kills++;
-    S.gem.push({ x: e.x, y: e.y, v: e.xp });
-    if (e.type === "boss") { endGame(true); }
-    beep(220 + Math.random() * 60, 0.04, "triangle", 0.03);
-  }
-}
-function nearest(from, maxD2 = 1e9) {
-  let best = null, bd = maxD2;
-  for (const e of S.en) { if (e.dead) continue; const d = dist2(from, e); if (d < bd) { bd = d; best = e; } }
-  return best;
-}
-function weaponTick(dt) {
-  const p = S.p; p.cd -= dt;
-  if (p.weapon === "bolt") {
-    if (p.cd <= 0) {
-      const t = nearest(p, 420 * 420);
-      if (t) {
-        const n = 1 + Math.floor(p.wl / 2) + (p.wl >= 1 ? 0 : 0);
-        const base = Math.atan2(t.y - p.y, t.x - p.x);
-        for (let i = 0; i < n; i++) {
-          const a = base + (i - (n - 1) / 2) * 0.18;
-          S.pr.push({ x: p.x, y: p.y, vx: Math.cos(a) * 340, vy: Math.sin(a) * 340, dmg: (8 + p.wl * 2) * p.dmgMul, life: 1.2, pierce: 1 + Math.floor(p.wl / 3) });
-        }
-        beep(660, 0.04, "square", 0.025);
-      }
-      p.cd = (0.55 - Math.min(0.25, p.wl * 0.025)) * p.cdMul;
-    }
-  } else if (p.weapon === "orbit") {
-    p.ang += dt * (2.4 + p.wl * 0.15);
-    const n = 2 + p.wl, R = 52 + p.wl * 3;
-    for (let i = 0; i < n; i++) {
-      const a = p.ang + (i / n) * Math.PI * 2, ox = p.x + Math.cos(a) * R, oy = p.y + Math.sin(a) * R;
-      for (const e of S.en) {
-        if (e.dead) continue;
-        if ((e.x - ox) ** 2 + (e.y - oy) ** 2 < (e.r + 9) ** 2) {
-          if (!e.orbCd || e.orbCd <= 0) { dmgEnemy(e, (7 + p.wl * 1.5) * p.dmgMul, Math.cos(a), Math.sin(a)); e.orbCd = 0.35 * p.cdMul; }
-        }
-      }
-    }
-    for (const e of S.en) if (e.orbCd > 0) e.orbCd -= dt;
-  } else if (p.weapon === "nova") {
-    if (p.cd <= 0) {
-      const R = 70 + p.wl * 14;
-      for (const e of S.en) if (!e.dead && dist2(p, e) < (R + e.r) ** 2) dmgEnemy(e, (12 + p.wl * 3) * p.dmgMul, (e.x - p.x) / 30, (e.y - p.y) / 30);
-      S.fx.push({ ring: true, x: p.x, y: p.y, R, t: 0.3 });
-      beep(180, 0.1, "sawtooth", 0.03);
-      p.cd = (1.6 - p.wl * 0.12) * p.cdMul;
-    }
-  }
-}
-
-// ---------- level up ----------
-function xpGain(v) {
-  const p = S.p; p.xp += v;
-  while (p.xp >= p.need) { p.xp -= p.need; p.lv++; p.need = Math.round(5 + p.lv * 3.2 + p.lv ** 1.4); openLevelUp(); }
-}
-function openLevelUp() {
-  S.paused = true;
-  const pool = UPGRADES.slice(); const picks = [];
-  while (picks.length < 3 && pool.length) picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
-  const box = $("picks"); box.innerHTML = "";
-  for (const u of picks) {
-    const b = document.createElement("button"); b.className = "pick";
-    const w = WEAPONS[S.p.weapon];
-    const desc = u.weapon ? `${w.name} nv.${S.p.wl + 2}: ${w.desc(S.p.wl + 1)}` : u.desc;
-    b.innerHTML = `<b>${u.weapon ? "Evoluir " + w.name : u.name}</b><small>${desc}</small>`;
-    b.onclick = () => { u.apply(S.p); $("levelup").classList.add("hidden"); S.paused = false; beep(880, 0.08, "triangle", 0.04); };
-    box.appendChild(b);
-  }
-  $("levelup").classList.remove("hidden");
-  box.firstChild && box.firstChild.focus();
-}
-
-// ---------- end ----------
-function endGame(win) {
-  if (S.over) return; S.over = true;
-  const secs = Math.floor(S.t), prev = store.best || 0;
-  const score = S.kills * 10 + secs * 5 + (win ? 5000 : 0);
-  if (score > prev) { store.best = score; save(); }
-  $("endTitle").textContent = win ? "Vitória!" : "Você caiu";
-  $("endInfo").innerHTML = `Tempo ${fmt(secs)} • Kills ${S.kills} • Nível ${S.p.lv}<br><b>Pontos: ${score}</b>${score > prev ? " (novo recorde!)" : ` (recorde ${prev})`}`;
-  setTimeout(() => $("end").classList.remove("hidden"), 600);
-}
-const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-
-// ---------- update ----------
-function update(dt) {
-  if (!S || S.paused || S.over) return;
-  S.t += dt;
-  const p = S.p;
-  // input
-  let ix = (keys.ArrowRight || keys.d || keys.D ? 1 : 0) - (keys.ArrowLeft || keys.a || keys.A ? 1 : 0);
-  let iy = (keys.ArrowDown || keys.s || keys.S ? 1 : 0) - (keys.ArrowUp || keys.w || keys.W ? 1 : 0);
-  if (joy.on) { ix = joy.dx; iy = joy.dy; }
-  const m = Math.hypot(ix, iy); if (m > 1) { ix /= m; iy /= m; }
-  p.x += ix * p.spd * dt; p.y += iy * p.spd * dt;
-  if (ix) p.face = ix > 0 ? 1 : -1;
-  p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
-  p.iframes -= dt;
-  spawnTick(dt); weaponTick(dt);
-  // projectiles
-  for (const b of S.pr) {
-    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-    for (const e of S.en) {
-      if (e.dead || b.life <= 0) continue;
-      if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < (e.r + 5) ** 2) { dmgEnemy(e, b.dmg, b.vx / 340, b.vy / 340); if (--b.pierce <= 0) b.life = 0; }
-    }
-  }
-  // enemies
-  for (const e of S.en) {
-    if (e.dead) continue;
-    const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
-    e.x += (dx / d) * e.spd * dt; e.y += (dy / d) * e.spd * dt; e.hit -= dt;
-    if (d < e.r + p.r && p.iframes <= 0) { p.hp -= e.dmg; p.iframes = 0.5; beep(110, 0.12, "sawtooth", 0.05); S.fx.push({ x: p.x, y: p.y - 14, text: "-" + e.dmg, t: 0.5, bad: true }); if (p.hp <= 0) endGame(false); }
-  }
-  // separation (cheap)
-  for (let i = 0; i < S.en.length; i += 2) {
-    const a = S.en[i], b = S.en[(i * 7 + 3) % S.en.length]; if (!b || a === b) continue;
-    const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy), min = a.r + b.r;
-    if (d > 0 && d < min) { const k = (min - d) / 2 / d; a.x += dx * k; a.y += dy * k; b.x -= dx * k; b.y -= dy * k; }
-  }
-  // gems
-  const mag = p.magnet;
-  for (const g of S.gem) {
-    const d = Math.hypot(p.x - g.x, p.y - g.y);
-    if (d < mag) { g.x += ((p.x - g.x) / d) * 260 * dt; g.y += ((p.y - g.y) / d) * 260 * dt; }
-    if (d < p.r + 6) { g.taken = true; xpGain(g.v); beep(1200, 0.03, "sine", 0.02); }
-  }
-  S.en = S.en.filter((e) => !e.dead); S.pr = S.pr.filter((b) => b.life > 0); S.gem = S.gem.filter((g) => !g.taken);
-  for (const f of S.fx) f.t -= dt; S.fx = S.fx.filter((f) => f.t > 0);
-  for (const f of S.fl) f.t -= dt; S.fl = S.fl.filter((f) => f.t > 0);
-  if (S.t >= 600 && !S.over) endGame(true);
-  S.cam.x += (p.x - S.cam.x) * Math.min(1, dt * 8); S.cam.y += (p.y - S.cam.y) * Math.min(1, dt * 8);
-  $("sLv").textContent = `Nv ${p.lv}`; $("sTime").textContent = fmt(Math.floor(S.t)); $("sKills").textContent = `☠ ${S.kills}`;
-}
-
-// ---------- draw ----------
-function critter(x, y, r, color, face = 1, hit = 0) {
-  ctx.fillStyle = "rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(x, y + r * 0.9, r * 0.9, r * 0.35, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = hit > 0 ? "#fff" : color; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(x - r * 0.7, y - r * 0.6); ctx.lineTo(x - r * 0.4, y - r * 1.4); ctx.lineTo(x - r * 0.05, y - r * 0.8); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(x + r * 0.7, y - r * 0.6); ctx.lineTo(x + r * 0.4, y - r * 1.4); ctx.lineTo(x + r * 0.05, y - r * 0.8); ctx.fill();
-  ctx.fillStyle = "#101428"; ctx.beginPath(); ctx.arc(x + face * r * 0.3 - r * 0.25, y - r * 0.1, r * 0.16, 0, 7); ctx.arc(x + face * r * 0.3 + r * 0.25, y - r * 0.1, r * 0.16, 0, 7); ctx.fill();
-}
-function draw() {
-  ctx.fillStyle = "#101a3a"; ctx.fillRect(0, 0, W, H);
-  if (!S) return;
-  const cx = S.cam.x - W / 2, cy = S.cam.y - H / 2;
-  // grid ground
-  ctx.strokeStyle = "rgba(255,255,255,.05)"; ctx.lineWidth = 1; const g = 64;
-  ctx.beginPath();
-  for (let x = -((cx % g) + g) % g; x < W; x += g) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-  for (let y = -((cy % g) + g) % g; y < H; y += g) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-  ctx.stroke();
-  ctx.save(); ctx.translate(-cx, -cy);
-  for (const g2 of S.gem) { ctx.fillStyle = "#6cf0ff"; ctx.beginPath(); ctx.moveTo(g2.x, g2.y - 5); ctx.lineTo(g2.x + 4, g2.y); ctx.lineTo(g2.x, g2.y + 5); ctx.lineTo(g2.x - 4, g2.y); ctx.fill(); }
-  for (const e of S.en) {
-    critter(e.x, e.y, e.r, e.color, e.x < S.p.x ? 1 : -1, e.hit);
-    if (e.type === "boss" || e.type === "brute") { ctx.fillStyle = "#000a"; ctx.fillRect(e.x - e.r, e.y - e.r - 12, e.r * 2, 4); ctx.fillStyle = "#ff4a6a"; ctx.fillRect(e.x - e.r, e.y - e.r - 12, e.r * 2 * clamp(e.hp / e.maxHp, 0, 1), 4); }
-  }
-  const p = S.p;
-  if (p.weapon === "orbit") { const n = 2 + p.wl, R = 52 + p.wl * 3; for (let i = 0; i < n; i++) { const a = p.ang + (i / n) * Math.PI * 2; ctx.fillStyle = "#7dff9a"; ctx.beginPath(); ctx.ellipse(p.x + Math.cos(a) * R, p.y + Math.sin(a) * R, 9, 5, a, 0, 7); ctx.fill(); } }
-  for (const b of S.pr) { ctx.fillStyle = "#ffe98a"; ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, 7); ctx.fill(); }
-  ctx.globalAlpha = p.iframes > 0 && Math.floor(S.t * 20) % 2 ? 0.4 : 1; critter(p.x, p.y, p.r, p.color, p.face); ctx.globalAlpha = 1;
-  for (const f of S.fx) {
-    if (f.ring) { ctx.strokeStyle = `rgba(255,236,120,${f.t / 0.3})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, f.R * (1 - f.t / 0.3 * 0.2), 0, 7); ctx.stroke(); continue; }
-    ctx.fillStyle = f.bad ? "#ff6a7a" : "#fff"; ctx.font = "bold 12px system-ui"; ctx.textAlign = "center"; ctx.fillText(f.text, f.x, f.y - (0.5 - f.t) * 30);
-  }
-  ctx.restore();
-  // HUD bars
-  const bw = Math.min(360, W - 24), bx = (W - bw) / 2;
-  ctx.fillStyle = "#000a"; ctx.fillRect(bx, H - 28, bw, 10); ctx.fillStyle = "#ff5470"; ctx.fillRect(bx, H - 28, bw * clamp(p.hp / p.maxHp, 0, 1), 10);
-  ctx.fillStyle = "#000a"; ctx.fillRect(bx, H - 14, bw, 6); ctx.fillStyle = "#6cf0ff"; ctx.fillRect(bx, H - 14, bw * (p.xp / p.need), 6);
-  ctx.textAlign = "center";
-  for (const f of S.fl) { ctx.globalAlpha = Math.min(1, f.t); ctx.fillStyle = "#ffd84a"; ctx.font = "bold 26px system-ui"; ctx.fillText(f.text, W / 2, H * 0.28); ctx.globalAlpha = 1; }
-  if (joy.on) { ctx.strokeStyle = "#fff6"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 44, 0, 7); ctx.stroke(); ctx.fillStyle = "#fff5"; ctx.beginPath(); ctx.arc(joy.ox + joy.dx * 44, joy.oy + joy.dy * 44, 18, 0, 7); ctx.fill(); }
-}
-
-// ---------- loop ----------
-let last = performance.now();
-function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
-requestAnimationFrame(frame);
-
-// ---------- input ----------
-addEventListener("keydown", (e) => { keys[e.key] = true; if (e.key.startsWith("Arrow")) e.preventDefault(); });
-addEventListener("keyup", (e) => { keys[e.key] = false; });
-cv.addEventListener("pointerdown", (e) => { if (joy.on) return; joy.on = true; joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY; joy.dx = joy.dy = 0; cv.setPointerCapture(e.pointerId); });
-cv.addEventListener("pointermove", (e) => { if (!joy.on || e.pointerId !== joy.id) return; const dx = e.clientX - joy.ox, dy = e.clientY - joy.oy, d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 44); joy.dx = dx / d * k; joy.dy = dy / d * k; });
-const up = (e) => { if (e.pointerId === joy.id) { joy.on = false; joy.dx = joy.dy = 0; } };
-cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
-
-// ---------- menu ----------
-function buildMenu() {
-  $("best").textContent = store.best ? `Recorde: ${store.best} pontos` : "";
-  const box = $("chars"); box.innerHTML = "";
-  for (const c of CHARS) {
-    const b = document.createElement("button"); b.className = "pick"; b.style.width = "100%";
-    b.innerHTML = `<b style="color:${c.color}">${c.name}</b><small>${c.desc} (vida ${c.hp}, vel. ${c.spd})</small>`;
-    b.onclick = () => { newGame(c); beep(520, 0.08, "triangle", 0.04); };
-    box.appendChild(b);
-  }
-}
-$("again").onclick = () => newGame(chosen);
-$("toMenu").onclick = () => { S = null; $("end").classList.add("hidden"); $("stat").classList.add("hidden"); $("menu").classList.remove("hidden"); buildMenu(); };
-buildMenu();
-// test hook
-window.__game = { get S() { return S; }, newGame, CHARS };
-</script>
+<script src="data.js"></script>
+<script src="game.js"></script>
 </body>
 </html>
